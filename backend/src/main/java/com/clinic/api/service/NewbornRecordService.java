@@ -38,7 +38,8 @@ public class NewbornRecordService {
 
         validateRequest(request);
 
-        LabourRecord labourRecord = getLabourRecord(request.getLabourRecordId());
+        LabourRecord labourRecord =
+                getLabourRecord(request.getLabourRecordId());
 
         validateLabourRecord(labourRecord);
 
@@ -52,7 +53,8 @@ public class NewbornRecordService {
         newbornRecord.setRecordStatus("ACTIVE");
         newbornRecord.setArchiveReason(null);
 
-        NewbornRecord saved = newbornRecordRepository.save(newbornRecord);
+        NewbornRecord saved =
+                newbornRecordRepository.save(newbornRecord);
 
         return mapToResponse(saved);
     }
@@ -68,15 +70,29 @@ public class NewbornRecordService {
 
         validateRequest(request);
 
-        NewbornRecord newbornRecord = getNewbornRecord(id);
+        NewbornRecord newbornRecord =
+                getNewbornRecord(id);
 
-        if ("ARCHIVED".equalsIgnoreCase(newbornRecord.getRecordStatus())) {
+        // -----------------------------------------------------
+        // ARCHIVED NEWBORN RECORDS
+        // -----------------------------------------------------
+
+        if ("ARCHIVED".equalsIgnoreCase(
+                newbornRecord.getRecordStatus()
+        )) {
+
             throw new IllegalArgumentException(
-                    "Archived newborn records are historical records and cannot be edited."
+                    "Archived newborn records are historical "
+                            + "records and cannot be edited."
             );
         }
 
+        // -----------------------------------------------------
+        // EXISTING LABOUR RELATIONSHIP
+        // -----------------------------------------------------
+
         if (newbornRecord.getLabourRecord() == null) {
+
             throw new IllegalArgumentException(
                     "Newborn record has no associated Labour record."
             );
@@ -85,28 +101,47 @@ public class NewbornRecordService {
         Long existingLabourRecordId =
                 newbornRecord.getLabourRecord().getId();
 
-        if (!existingLabourRecordId.equals(request.getLabourRecordId())) {
+        if (!existingLabourRecordId.equals(
+                request.getLabourRecordId()
+        )) {
+
             throw new IllegalArgumentException(
-                    "A newborn cannot be moved to another Labour record. "
-                    + "The original Labour relationship must be preserved."
+                    "A newborn cannot be moved to another Labour "
+                            + "record. The original Labour relationship "
+                            + "must be preserved."
             );
         }
 
         LabourRecord labourRecord =
-                getLabourRecord(request.getLabourRecordId());
+                getLabourRecord(
+                        request.getLabourRecordId()
+                );
 
+        /*
+         * Both ACTIVE and COMPLETED Labour records are valid
+         * parents for newborn records.
+         *
+         * ARCHIVED Labour records are rejected.
+         */
         validateLabourRecord(labourRecord);
 
-        mapRequestToEntity(request, newbornRecord);
+        mapRequestToEntity(
+                request,
+                newbornRecord
+        );
 
         // Preserve the original relationship.
-        newbornRecord.setLabourRecord(labourRecord);
+        newbornRecord.setLabourRecord(
+                labourRecord
+        );
 
         // Status is controlled by the service.
         newbornRecord.setRecordStatus("ACTIVE");
 
         NewbornRecord updated =
-                newbornRecordRepository.save(newbornRecord);
+                newbornRecordRepository.save(
+                        newbornRecord
+                );
 
         return mapToResponse(updated);
     }
@@ -131,7 +166,8 @@ public class NewbornRecordService {
     @Transactional(readOnly = true)
     public NewbornRecordResponse getById(Long id) {
 
-        NewbornRecord newbornRecord = getNewbornRecord(id);
+        NewbornRecord newbornRecord =
+                getNewbornRecord(id);
 
         return mapToResponse(newbornRecord);
     }
@@ -146,12 +182,16 @@ public class NewbornRecordService {
     ) {
 
         if (labourRecordId == null) {
+
             throw new IllegalArgumentException(
                     "Labour record ID is required."
             );
         }
 
-        if (!labourRecordRepository.existsById(labourRecordId)) {
+        if (!labourRecordRepository.existsById(
+                labourRecordId
+        )) {
+
             throw new IllegalArgumentException(
                     "Labour record not found with ID: "
                             + labourRecordId
@@ -159,7 +199,9 @@ public class NewbornRecordService {
         }
 
         return newbornRecordRepository
-                .findByLabourRecordIdOrderByDateOfBirthDesc(labourRecordId)
+                .findByLabourRecordIdOrderByDateOfBirthDesc(
+                        labourRecordId
+                )
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -175,12 +217,16 @@ public class NewbornRecordService {
     ) {
 
         if (labourRecordId == null) {
+
             throw new IllegalArgumentException(
                     "Labour record ID is required."
             );
         }
 
-        if (!labourRecordRepository.existsById(labourRecordId)) {
+        if (!labourRecordRepository.existsById(
+                labourRecordId
+        )) {
+
             throw new IllegalArgumentException(
                     "Labour record not found with ID: "
                             + labourRecordId
@@ -206,26 +252,36 @@ public class NewbornRecordService {
             String reason
     ) {
 
-        NewbornRecord newbornRecord = getNewbornRecord(id);
+        NewbornRecord newbornRecord =
+                getNewbornRecord(id);
 
         if ("ARCHIVED".equalsIgnoreCase(
                 newbornRecord.getRecordStatus()
         )) {
+
             throw new IllegalArgumentException(
                     "Newborn record is already archived."
             );
         }
 
-        String archiveReason = normalize(reason);
+        String archiveReason =
+                normalize(reason);
 
         if (archiveReason == null) {
             archiveReason = "Newborn record archived.";
         }
 
-        newbornRecord.setRecordStatus("ARCHIVED");
-        newbornRecord.setArchiveReason(archiveReason);
+        newbornRecord.setRecordStatus(
+                "ARCHIVED"
+        );
 
-        newbornRecordRepository.save(newbornRecord);
+        newbornRecord.setArchiveReason(
+                archiveReason
+        );
+
+        newbornRecordRepository.save(
+                newbornRecord
+        );
     }
 
     // =========================================================
@@ -233,16 +289,21 @@ public class NewbornRecordService {
     // =========================================================
 
     @Transactional(readOnly = true)
-    public long countByLabourRecord(Long labourRecordId) {
+    public long countByLabourRecord(
+            Long labourRecordId
+    ) {
 
         if (labourRecordId == null) {
+
             throw new IllegalArgumentException(
                     "Labour record ID is required."
             );
         }
 
         return newbornRecordRepository
-                .countByLabourRecordId(labourRecordId);
+                .countByLabourRecordId(
+                        labourRecordId
+                );
     }
 
     // =========================================================
@@ -250,9 +311,12 @@ public class NewbornRecordService {
     // =========================================================
 
     @Transactional(readOnly = true)
-    public long countActiveByLabourRecord(Long labourRecordId) {
+    public long countActiveByLabourRecord(
+            Long labourRecordId
+    ) {
 
         if (labourRecordId == null) {
+
             throw new IllegalArgumentException(
                     "Labour record ID is required."
             );
@@ -274,18 +338,21 @@ public class NewbornRecordService {
     ) {
 
         if (request == null) {
+
             throw new IllegalArgumentException(
                     "Newborn record request is required."
             );
         }
 
         if (request.getLabourRecordId() == null) {
+
             throw new IllegalArgumentException(
                     "Labour record ID is required."
             );
         }
 
         if (request.getDateOfBirth() == null) {
+
             throw new IllegalArgumentException(
                     "Date of birth is required."
             );
@@ -301,30 +368,67 @@ public class NewbornRecordService {
     ) {
 
         if (labourRecord == null) {
+
             throw new IllegalArgumentException(
                     "Labour record not found."
             );
         }
 
-        if ("ARCHIVED".equalsIgnoreCase(
-                labourRecord.getRecordStatus()
-        )) {
+        String labourStatus =
+                normalizeStatus(
+                        labourRecord.getRecordStatus()
+                );
+
+        // -----------------------------------------------------
+        // ARCHIVED LABOUR
+        // -----------------------------------------------------
+
+        if ("ARCHIVED".equals(labourStatus)) {
+
             throw new IllegalArgumentException(
-                    "Newborn cannot be registered against an archived Labour record."
+                    "Newborn cannot be registered against "
+                            + "an archived Labour record."
             );
         }
 
+        // -----------------------------------------------------
+        // ONLY ACTIVE OR COMPLETED LABOUR IS VALID
+        // -----------------------------------------------------
+
+        if (!"ACTIVE".equals(labourStatus)
+                && !"COMPLETED".equals(labourStatus)) {
+
+            throw new IllegalArgumentException(
+                    "Newborn records can only be registered "
+                            + "against ACTIVE or COMPLETED Labour records."
+            );
+        }
+
+        // -----------------------------------------------------
+        // PREGNANCY RELATIONSHIP
+        // -----------------------------------------------------
+
         if (labourRecord.getPregnancy() == null) {
+
             throw new IllegalArgumentException(
                     "Labour record has no associated pregnancy."
             );
         }
 
+        Pregnancy pregnancy =
+                labourRecord.getPregnancy();
+
+        // -----------------------------------------------------
+        // PREGNANCY MUST STILL BE ACTIVE
+        // -----------------------------------------------------
+
         if (!"ACTIVE".equalsIgnoreCase(
-                labourRecord.getPregnancy().getStatus()
+                pregnancy.getStatus()
         )) {
+
             throw new IllegalArgumentException(
-                    "The pregnancy associated with this Labour record is not active."
+                    "The pregnancy associated with this "
+                            + "Labour record is not active."
             );
         }
     }
@@ -337,7 +441,8 @@ public class NewbornRecordService {
             Long labourRecordId
     ) {
 
-        return labourRecordRepository.findById(labourRecordId)
+        return labourRecordRepository
+                .findById(labourRecordId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Labour record not found with ID: "
@@ -350,15 +455,19 @@ public class NewbornRecordService {
     // FIND NEWBORN
     // =========================================================
 
-    private NewbornRecord getNewbornRecord(Long id) {
+    private NewbornRecord getNewbornRecord(
+            Long id
+    ) {
 
         if (id == null) {
+
             throw new IllegalArgumentException(
                     "Newborn record ID is required."
             );
         }
 
-        return newbornRecordRepository.findById(id)
+        return newbornRecordRepository
+                .findById(id)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Newborn record not found with ID: "
@@ -376,25 +485,46 @@ public class NewbornRecordService {
             NewbornRecord entity
     ) {
 
-        entity.setDateOfBirth(request.getDateOfBirth());
+        entity.setDateOfBirth(
+                request.getDateOfBirth()
+        );
+
         entity.setTimeOfBirth(
-                normalize(request.getTimeOfBirth())
+                normalize(
+                        request.getTimeOfBirth()
+                )
         );
 
         entity.setSex(
-                normalize(request.getSex())
+                normalize(
+                        request.getSex()
+                )
         );
 
-        entity.setBirthOrder(request.getBirthOrder());
+        entity.setBirthOrder(
+                request.getBirthOrder()
+        );
 
+        // -----------------------------------------------------
         // Birth measurements
-        entity.setBirthWeight(request.getBirthWeight());
-        entity.setBirthLength(request.getBirthLength());
+        // -----------------------------------------------------
+
+        entity.setBirthWeight(
+                request.getBirthWeight()
+        );
+
+        entity.setBirthLength(
+                request.getBirthLength()
+        );
+
         entity.setHeadCircumference(
                 request.getHeadCircumference()
         );
 
+        // -----------------------------------------------------
         // APGAR
+        // -----------------------------------------------------
+
         entity.setApgarOneMinute(
                 request.getApgarOneMinute()
         );
@@ -407,28 +537,44 @@ public class NewbornRecordService {
                 request.getApgarTenMinutes()
         );
 
+        // -----------------------------------------------------
         // Condition at birth
+        // -----------------------------------------------------
+
         entity.setConditionAtBirth(
-                normalize(request.getConditionAtBirth())
+                normalize(
+                        request.getConditionAtBirth()
+                )
         );
 
         entity.setCryAtBirth(
-                normalize(request.getCryAtBirth())
+                normalize(
+                        request.getCryAtBirth()
+                )
         );
 
         entity.setBreathingAtBirth(
-                normalize(request.getBreathingAtBirth())
+                normalize(
+                        request.getBreathingAtBirth()
+                )
         );
 
         entity.setMuscleTone(
-                normalize(request.getMuscleTone())
+                normalize(
+                        request.getMuscleTone()
+                )
         );
 
         entity.setSkinColour(
-                normalize(request.getSkinColour())
+                normalize(
+                        request.getSkinColour()
+                )
         );
 
+        // -----------------------------------------------------
         // Resuscitation
+        // -----------------------------------------------------
+
         entity.setResuscitationRequired(
                 request.getResuscitationRequired() != null
                         ? request.getResuscitationRequired()
@@ -436,29 +582,49 @@ public class NewbornRecordService {
         );
 
         entity.setResuscitationMethod(
-                normalize(request.getResuscitationMethod())
+                normalize(
+                        request.getResuscitationMethod()
+                )
         );
 
         entity.setResuscitationDuration(
-                normalize(request.getResuscitationDuration())
+                normalize(
+                        request.getResuscitationDuration()
+                )
         );
 
+        // -----------------------------------------------------
         // Clinical findings
+        // -----------------------------------------------------
+
         entity.setCongenitalAbnormalities(
-                normalize(request.getCongenitalAbnormalities())
+                normalize(
+                        request.getCongenitalAbnormalities()
+                )
         );
 
         entity.setClinicalCondition(
-                normalize(request.getClinicalCondition())
+                normalize(
+                        request.getClinicalCondition()
+                )
         );
 
-        entity.setTemperature(request.getTemperature());
-        entity.setHeartRate(request.getHeartRate());
+        entity.setTemperature(
+                request.getTemperature()
+        );
+
+        entity.setHeartRate(
+                request.getHeartRate()
+        );
+
         entity.setRespiratoryRate(
                 request.getRespiratoryRate()
         );
 
+        // -----------------------------------------------------
         // Immediate newborn care
+        // -----------------------------------------------------
+
         entity.setBreastfeedingStarted(
                 request.getBreastfeedingStarted() != null
                         ? request.getBreastfeedingStarted()
@@ -466,7 +632,9 @@ public class NewbornRecordService {
         );
 
         entity.setBreastfeedingTime(
-                normalize(request.getBreastfeedingTime())
+                normalize(
+                        request.getBreastfeedingTime()
+                )
         );
 
         entity.setSkinToSkin(
@@ -493,13 +661,20 @@ public class NewbornRecordService {
                         : false
         );
 
+        // -----------------------------------------------------
         // Outcome
+        // -----------------------------------------------------
+
         entity.setNewbornOutcome(
-                normalize(request.getNewbornOutcome())
+                normalize(
+                        request.getNewbornOutcome()
+                )
         );
 
         entity.setPlaceOfCare(
-                normalize(request.getPlaceOfCare())
+                normalize(
+                        request.getPlaceOfCare()
+                )
         );
 
         entity.setReferralRequired(
@@ -509,20 +684,31 @@ public class NewbornRecordService {
         );
 
         entity.setReferralReason(
-                normalize(request.getReferralReason())
+                normalize(
+                        request.getReferralReason()
+                )
         );
 
+        // -----------------------------------------------------
         // Clinical notes
+        // -----------------------------------------------------
+
         entity.setAssessment(
-                normalize(request.getAssessment())
+                normalize(
+                        request.getAssessment()
+                )
         );
 
         entity.setTreatment(
-                normalize(request.getTreatment())
+                normalize(
+                        request.getTreatment()
+                )
         );
 
         entity.setNotes(
-                normalize(request.getNotes())
+                normalize(
+                        request.getNotes()
+                )
         );
     }
 
@@ -537,7 +723,9 @@ public class NewbornRecordService {
         NewbornRecordResponse response =
                 new NewbornRecordResponse();
 
-        response.setId(entity.getId());
+        response.setId(
+                entity.getId()
+        );
 
         LabourRecord labourRecord =
                 entity.getLabourRecord();
@@ -577,7 +765,10 @@ public class NewbornRecordService {
             }
         }
 
+        // -----------------------------------------------------
         // Basic information
+        // -----------------------------------------------------
+
         response.setDateOfBirth(
                 entity.getDateOfBirth()
         );
@@ -594,7 +785,10 @@ public class NewbornRecordService {
                 entity.getBirthOrder()
         );
 
+        // -----------------------------------------------------
         // Measurements
+        // -----------------------------------------------------
+
         response.setBirthWeight(
                 entity.getBirthWeight()
         );
@@ -607,7 +801,10 @@ public class NewbornRecordService {
                 entity.getHeadCircumference()
         );
 
+        // -----------------------------------------------------
         // APGAR
+        // -----------------------------------------------------
+
         response.setApgarOneMinute(
                 entity.getApgarOneMinute()
         );
@@ -620,7 +817,10 @@ public class NewbornRecordService {
                 entity.getApgarTenMinutes()
         );
 
+        // -----------------------------------------------------
         // Condition
+        // -----------------------------------------------------
+
         response.setConditionAtBirth(
                 entity.getConditionAtBirth()
         );
@@ -641,7 +841,10 @@ public class NewbornRecordService {
                 entity.getSkinColour()
         );
 
+        // -----------------------------------------------------
         // Resuscitation
+        // -----------------------------------------------------
+
         response.setResuscitationRequired(
                 entity.getResuscitationRequired()
         );
@@ -654,7 +857,10 @@ public class NewbornRecordService {
                 entity.getResuscitationDuration()
         );
 
+        // -----------------------------------------------------
         // Clinical findings
+        // -----------------------------------------------------
+
         response.setCongenitalAbnormalities(
                 entity.getCongenitalAbnormalities()
         );
@@ -675,7 +881,10 @@ public class NewbornRecordService {
                 entity.getRespiratoryRate()
         );
 
+        // -----------------------------------------------------
         // Immediate care
+        // -----------------------------------------------------
+
         response.setBreastfeedingStarted(
                 entity.getBreastfeedingStarted()
         );
@@ -700,7 +909,10 @@ public class NewbornRecordService {
                 entity.getOpvGiven()
         );
 
+        // -----------------------------------------------------
         // Outcome
+        // -----------------------------------------------------
+
         response.setNewbornOutcome(
                 entity.getNewbornOutcome()
         );
@@ -717,7 +929,10 @@ public class NewbornRecordService {
                 entity.getReferralReason()
         );
 
+        // -----------------------------------------------------
         // Clinical notes
+        // -----------------------------------------------------
+
         response.setAssessment(
                 entity.getAssessment()
         );
@@ -730,7 +945,10 @@ public class NewbornRecordService {
                 entity.getNotes()
         );
 
+        // -----------------------------------------------------
         // Record protection
+        // -----------------------------------------------------
+
         response.setRecordStatus(
                 entity.getRecordStatus()
         );
@@ -739,7 +957,10 @@ public class NewbornRecordService {
                 entity.getArchiveReason()
         );
 
+        // -----------------------------------------------------
         // Timestamps
+        // -----------------------------------------------------
+
         response.setCreatedAt(
                 entity.getCreatedAt()
         );
@@ -755,9 +976,12 @@ public class NewbornRecordService {
     // PATIENT NAME
     // =========================================================
 
-    private String buildPatientName(Patient patient) {
+    private String buildPatientName(
+            Patient patient
+    ) {
 
-        StringBuilder name = new StringBuilder();
+        StringBuilder name =
+                new StringBuilder();
 
         if (patient.getFirstName() != null
                 && !patient.getFirstName().isBlank()) {
@@ -786,16 +1010,38 @@ public class NewbornRecordService {
     // STRING NORMALIZATION
     // =========================================================
 
-    private String normalize(String value) {
+    private String normalize(
+            String value
+    ) {
 
         if (value == null) {
             return null;
         }
 
-        String trimmed = value.trim();
+        String trimmed =
+                value.trim();
 
         return trimmed.isEmpty()
                 ? null
                 : trimmed;
+    }
+
+    // =========================================================
+    // STATUS NORMALIZATION
+    // =========================================================
+
+    private String normalizeStatus(
+            String status
+    ) {
+
+        if (status == null
+                || status.isBlank()) {
+
+            return "ACTIVE";
+        }
+
+        return status
+                .trim()
+                .toUpperCase();
     }
 }

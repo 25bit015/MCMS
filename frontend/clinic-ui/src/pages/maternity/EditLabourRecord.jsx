@@ -97,7 +97,8 @@ const sectionThemes = {
   delivery: {
     icon: Baby,
     iconClass: "bg-orange-100 text-orange-700",
-    headerClass: "bg-gradient-to-r from-orange-50 to-rose-50 border-orange-100",
+    headerClass:
+      "bg-gradient-to-r from-orange-50 to-rose-50 border-orange-100",
     titleClass: "text-orange-950",
   },
   postpartum: {
@@ -132,9 +133,7 @@ function SectionCard({
           : "border-slate-200"
       }`}
     >
-      <div
-        className={`border-b px-5 py-4 ${config.headerClass}`}
-      >
+      <div className={`border-b px-5 py-4 ${config.headerClass}`}>
         <div className="flex items-center gap-3">
           <div
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${config.iconClass}`}
@@ -272,11 +271,16 @@ export default function EditLabourRecord() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const isArchived = useMemo(
-    () =>
-      record?.recordStatus?.toUpperCase() === "ARCHIVED",
+  const recordStatus = useMemo(
+    () => record?.recordStatus?.toUpperCase() || "",
     [record]
   );
+
+  const isActive = recordStatus === "ACTIVE";
+  const isCompleted = recordStatus === "COMPLETED";
+  const isArchived = recordStatus === "ARCHIVED";
+
+  const isLocked = !isActive;
 
   useEffect(() => {
     let mounted = true;
@@ -410,9 +414,13 @@ export default function EditLabourRecord() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (isArchived) {
+    if (isLocked) {
       setError(
-        "Labour Record hii ime-archive na haiwezi kuhaririwa kwa sababu ni historical record."
+        isCompleted
+          ? "Labour Record hii imekamilika na imefungwa. Completed records haziwezi kuhaririwa."
+          : isArchived
+          ? "Labour Record hii ime-archive na haiwezi kuhaririwa kwa sababu ni historical record."
+          : "Labour Record hii haiwezi kuhaririwa kwa sababu status yake hairuhusu clinical editing."
       );
       return;
     }
@@ -525,7 +533,25 @@ export default function EditLabourRecord() {
     );
   }
 
-  if (isArchived) {
+  if (isLocked) {
+    const lockedTitle = isCompleted
+      ? "Labour Record imekamilika"
+      : "Labour Record haiwezi kuhaririwa";
+
+    const lockedDescription = isCompleted
+      ? "Record hii imekamilishwa baada ya delivery. Taarifa za Labour & Delivery zimefungwa ili kulinda clinical history."
+      : "Record hii imehifadhiwa kama historical record na hairuhusiwi kubadilishwa.";
+
+    const statusLabel = isCompleted
+      ? "COMPLETED"
+      : isArchived
+      ? "ARCHIVED"
+      : record.recordStatus || "LOCKED";
+
+    const statusClass = isCompleted
+      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+      : "bg-amber-100 text-amber-700 border-amber-200";
+
     return (
       <div className="min-h-screen bg-slate-50 p-4 md:p-6">
         <div className="mx-auto max-w-5xl">
@@ -539,34 +565,77 @@ export default function EditLabourRecord() {
             </Link>
           </div>
 
-          <div className="overflow-hidden rounded-3xl border border-amber-200 bg-white shadow-sm">
-            <div className="relative overflow-hidden bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-8 md:px-8">
-              <div className="absolute -right-10 -top-16 h-40 w-40 rounded-full bg-amber-100/70 blur-2xl" />
+          <div
+            className={`overflow-hidden rounded-3xl border bg-white shadow-sm ${
+              isCompleted
+                ? "border-emerald-200"
+                : "border-amber-200"
+            }`}
+          >
+            <div
+              className={`relative overflow-hidden px-6 py-8 md:px-8 ${
+                isCompleted
+                  ? "bg-gradient-to-r from-emerald-50 to-teal-50"
+                  : "bg-gradient-to-r from-amber-50 to-orange-50"
+              }`}
+            >
+              <div
+                className={`absolute -right-10 -top-16 h-40 w-40 rounded-full blur-2xl ${
+                  isCompleted
+                    ? "bg-emerald-100/70"
+                    : "bg-amber-100/70"
+                }`}
+              />
 
               <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 shadow-sm">
-                  <ShieldCheck size={28} />
+                <div
+                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-sm ${
+                    isCompleted
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-amber-100 text-amber-700"
+                  }`}
+                >
+                  {isCompleted ? (
+                    <CheckCircle2 size={28} />
+                  ) : (
+                    <ShieldCheck size={28} />
+                  )}
                 </div>
 
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-amber-700">
-                    Record Archived
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p
+                      className={`text-xs font-bold uppercase tracking-wider ${
+                        isCompleted
+                          ? "text-emerald-700"
+                          : "text-amber-700"
+                      }`}
+                    >
+                      {isCompleted
+                        ? "Record Completed"
+                        : "Record Archived"}
+                    </p>
+
+                    <span
+                      className={`rounded-full border px-3 py-1 text-[11px] font-black tracking-wide ${statusClass}`}
+                    >
+                      {statusLabel}
+                    </span>
+                  </div>
 
                   <h1 className="mt-1 text-2xl font-black text-slate-900">
-                    Labour Record haiwezi kuhaririwa
+                    {lockedTitle}
                   </h1>
 
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                    Record hii imehifadhiwa kama historical record
-                    na hairuhusiwi kubadilishwa.
+                    {lockedDescription}
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="p-6 md:p-8">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                     Patient
@@ -583,14 +652,78 @@ export default function EditLabourRecord() {
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                    Archive Reason
+                    Pregnancy
                   </p>
 
-                  <p className="mt-1 font-semibold text-slate-800">
-                    {record.archiveReason || "Haijawekwa"}
+                  <p className="mt-1 font-bold text-slate-800">
+                    Pregnancy #{record.pregnancyId || "—"}
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Relationship locked
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Labour Record
+                  </p>
+
+                  <p className="mt-1 font-bold text-slate-800">
+                    #{record.id}
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Clinical editing locked
                   </p>
                 </div>
               </div>
+
+              {isCompleted && (
+                <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+
+                    <div>
+                      <p className="text-sm font-bold text-emerald-900">
+                        Delivery record imekamilika
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-emerald-700">
+                        Labour clinical data haiwezi tena
+                        kuhaririwa. Unaweza kuendelea kuona
+                        Labour Profile na Newborn Records
+                        zilizounganishwa na Labour hii.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {isArchived && (
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+
+                    <div>
+                      <p className="text-sm font-bold text-amber-900">
+                        Historical record
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-amber-700">
+                        Record hii imehifadhiwa kwa ajili ya
+                        historia na audit. Haiwezi kuhaririwa.
+                      </p>
+
+                      {record.archiveReason && (
+                        <p className="mt-2 text-xs font-semibold text-amber-800">
+                          Sababu: {record.archiveReason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
@@ -726,7 +859,7 @@ export default function EditLabourRecord() {
                 </p>
 
                 <p className="text-xs text-emerald-700">
-                  Inaruhusiwa kuhaririwa
+                  ACTIVE record inaruhusiwa kuhaririwa
                 </p>
               </div>
             </div>
@@ -744,9 +877,9 @@ export default function EditLabourRecord() {
               </p>
 
               <p className="mt-0.5 text-xs leading-5 text-blue-700">
-                Pregnancy iliyounganishwa na Labour Record hii haiwezi
-                kubadilishwa wakati wa edit. Taarifa nyingine zinaweza
-                kusasishwa bila kuvunja historia ya mgonjwa.
+                Pregnancy iliyounganishwa na Labour Record hii
+                haiwezi kubadilishwa wakati wa edit. Taarifa nyingine
+                zinaweza kusasishwa bila kuvunja historia ya mgonjwa.
               </p>
             </div>
           </div>
@@ -824,13 +957,9 @@ export default function EditLabourRecord() {
                   className={inputClass}
                 >
                   <option value="">Chagua</option>
-                  <option value="SPONTANEOUS">
-                    Spontaneous
-                  </option>
+                  <option value="SPONTANEOUS">Spontaneous</option>
                   <option value="INDUCED">Induced</option>
-                  <option value="AUGMENTED">
-                    Augmented
-                  </option>
+                  <option value="AUGMENTED">Augmented</option>
                   <option value="UNKNOWN">Unknown</option>
                 </select>
               </div>
@@ -854,18 +983,10 @@ export default function EditLabourRecord() {
                   className={inputClass}
                 >
                   <option value="">Chagua</option>
-                  <option value="FIRST_STAGE">
-                    First Stage
-                  </option>
-                  <option value="SECOND_STAGE">
-                    Second Stage
-                  </option>
-                  <option value="THIRD_STAGE">
-                    Third Stage
-                  </option>
-                  <option value="FOURTH_STAGE">
-                    Fourth Stage
-                  </option>
+                  <option value="FIRST_STAGE">First Stage</option>
+                  <option value="SECOND_STAGE">Second Stage</option>
+                  <option value="THIRD_STAGE">Third Stage</option>
+                  <option value="FOURTH_STAGE">Fourth Stage</option>
                 </select>
               </div>
 
@@ -895,12 +1016,8 @@ export default function EditLabourRecord() {
                 >
                   <option value="">Chagua</option>
                   <option value="CLEAR">Clear</option>
-                  <option value="MECONIUM">
-                    Meconium
-                  </option>
-                  <option value="BLOOD_STAINED">
-                    Blood Stained
-                  </option>
+                  <option value="MECONIUM">Meconium</option>
+                  <option value="BLOOD_STAINED">Blood Stained</option>
                   <option value="FOUL_SMELLING">
                     Foul Smelling
                   </option>
@@ -1088,9 +1205,7 @@ export default function EditLabourRecord() {
                   <option value="">Chagua</option>
                   <option value="NONE">None</option>
                   <option value="MILD">Mild</option>
-                  <option value="MODERATE">
-                    Moderate
-                  </option>
+                  <option value="MODERATE">Moderate</option>
                   <option value="SEVERE">Severe</option>
                 </select>
               </div>
@@ -1151,15 +1266,11 @@ export default function EditLabourRecord() {
                   className={inputClass}
                 >
                   <option value="">Chagua</option>
-                  <option value="REASSURING">
-                    Reassuring
-                  </option>
+                  <option value="REASSURING">Reassuring</option>
                   <option value="NON_REASSURING">
                     Non-Reassuring
                   </option>
-                  <option value="DISTRESSED">
-                    Distressed
-                  </option>
+                  <option value="DISTRESSED">Distressed</option>
                   <option value="UNKNOWN">Unknown</option>
                 </select>
               </div>
@@ -1174,13 +1285,9 @@ export default function EditLabourRecord() {
                   className={inputClass}
                 >
                   <option value="">Chagua</option>
-                  <option value="CEPHALIC">
-                    Cephalic
-                  </option>
+                  <option value="CEPHALIC">Cephalic</option>
                   <option value="BREECH">Breech</option>
-                  <option value="SHOULDER">
-                    Shoulder
-                  </option>
+                  <option value="SHOULDER">Shoulder</option>
                   <option value="OTHER">Other</option>
                 </select>
               </div>
@@ -1195,12 +1302,8 @@ export default function EditLabourRecord() {
                   className={inputClass}
                 >
                   <option value="">Chagua</option>
-                  <option value="LONGITUDINAL">
-                    Longitudinal
-                  </option>
-                  <option value="TRANSVERSE">
-                    Transverse
-                  </option>
+                  <option value="LONGITUDINAL">Longitudinal</option>
+                  <option value="TRANSVERSE">Transverse</option>
                   <option value="OBLIQUE">Oblique</option>
                 </select>
               </div>
@@ -1301,9 +1404,7 @@ export default function EditLabourRecord() {
                   <option value="ASSISTED_VAGINAL">
                     Assisted Vaginal
                   </option>
-                  <option value="C_SECTION">
-                    C-Section
-                  </option>
+                  <option value="C_SECTION">C-Section</option>
                   <option value="OTHER">Other</option>
                 </select>
               </div>
@@ -1331,20 +1432,14 @@ export default function EditLabourRecord() {
                   className={inputClass}
                 >
                   <option value="">Chagua</option>
-                  <option value="LIVE_BIRTH">
-                    Live Birth
-                  </option>
-                  <option value="STILLBIRTH">
-                    Stillbirth
-                  </option>
+                  <option value="LIVE_BIRTH">Live Birth</option>
+                  <option value="STILLBIRTH">Stillbirth</option>
                   <option value="OTHER">Other</option>
                 </select>
               </div>
 
               <div className="md:col-span-2 lg:col-span-3">
-                <FieldLabel>
-                  Delivery Complications
-                </FieldLabel>
+                <FieldLabel>Delivery Complications</FieldLabel>
 
                 <textarea
                   name="deliveryComplications"
@@ -1383,9 +1478,7 @@ export default function EditLabourRecord() {
               </div>
 
               <div>
-                <FieldLabel>
-                  Postpartum Bleeding
-                </FieldLabel>
+                <FieldLabel>Postpartum Bleeding</FieldLabel>
 
                 <select
                   name="postpartumBleeding"
@@ -1396,9 +1489,7 @@ export default function EditLabourRecord() {
                   <option value="">Chagua</option>
                   <option value="NONE">None</option>
                   <option value="MILD">Mild</option>
-                  <option value="MODERATE">
-                    Moderate
-                  </option>
+                  <option value="MODERATE">Moderate</option>
                   <option value="SEVERE">Severe</option>
                 </select>
               </div>
@@ -1414,20 +1505,14 @@ export default function EditLabourRecord() {
                 >
                   <option value="">Chagua</option>
                   <option value="COMPLETE">Complete</option>
-                  <option value="INCOMPLETE">
-                    Incomplete
-                  </option>
-                  <option value="RETAINED">
-                    Retained
-                  </option>
+                  <option value="INCOMPLETE">Incomplete</option>
+                  <option value="RETAINED">Retained</option>
                   <option value="UNKNOWN">Unknown</option>
                 </select>
               </div>
 
               <div>
-                <FieldLabel>
-                  Estimated Blood Loss (ml)
-                </FieldLabel>
+                <FieldLabel>Estimated Blood Loss (ml)</FieldLabel>
 
                 <input
                   type="number"

@@ -118,6 +118,18 @@ public class LabourRecordController {
     }
 
     // ---------------------------------------------------------
+    // COMPLETE LABOUR RECORD
+    // ---------------------------------------------------------
+    @PutMapping("/{id}/complete")
+    public ResponseEntity<LabourRecordResponse> complete(
+            @PathVariable Long id) {
+
+        return ResponseEntity.ok(
+                labourRecordService.complete(id)
+        );
+    }
+
+    // ---------------------------------------------------------
     // ARCHIVE LABOUR RECORD
     // ---------------------------------------------------------
     @PutMapping("/{id}/archive")

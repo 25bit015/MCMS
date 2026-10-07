@@ -54,6 +54,7 @@ function statusLabel(status) {
   const normalized = String(status || "").toUpperCase();
 
   if (normalized === "ACTIVE") return "Active";
+  if (normalized === "COMPLETED") return "Completed";
   if (normalized === "ARCHIVED") return "Archived";
 
   return status || "—";
@@ -64,6 +65,10 @@ function statusClasses(status) {
 
   if (normalized === "ARCHIVED") {
     return "border-white/40 bg-white/20 text-white";
+  }
+
+  if (normalized === "COMPLETED") {
+    return "border-white/40 bg-white/15 text-white";
   }
 
   return "border-emerald-200 bg-emerald-100 text-emerald-800";
@@ -400,6 +405,7 @@ function NewbornCard({ newborn }) {
               <p className="text-[10px] font-bold text-slate-400">
                 1 MIN
               </p>
+
               <p className="mt-1 text-lg font-black text-purple-700">
                 {newborn.apgarOneMinute ?? "—"}
               </p>
@@ -409,6 +415,7 @@ function NewbornCard({ newborn }) {
               <p className="text-[10px] font-bold text-slate-400">
                 5 MIN
               </p>
+
               <p className="mt-1 text-lg font-black text-purple-700">
                 {newborn.apgarFiveMinutes ?? "—"}
               </p>
@@ -418,6 +425,7 @@ function NewbornCard({ newborn }) {
               <p className="text-[10px] font-bold text-slate-400">
                 10 MIN
               </p>
+
               <p className="mt-1 text-lg font-black text-purple-700">
                 {newborn.apgarTenMinutes ?? "—"}
               </p>
@@ -564,12 +572,38 @@ export default function LabourRecordProfile() {
     loadNewborns();
   }, [id]);
 
-  const isArchived = useMemo(
-    () =>
-      String(record?.recordStatus || "").toUpperCase() ===
-      "ARCHIVED",
+  const recordStatus = useMemo(
+    () => String(record?.recordStatus || "").toUpperCase(),
     [record]
   );
+
+  const isArchived = recordStatus === "ARCHIVED";
+  const isCompleted = recordStatus === "COMPLETED";
+  const isActive = recordStatus === "ACTIVE";
+
+  /*
+   * Labour lifecycle:
+   *
+   * ACTIVE
+   *   - can edit
+   *   - can archive
+   *   - can register newborn
+   *
+   * COMPLETED
+   *   - read-only labour/delivery data
+   *   - cannot edit
+   *   - cannot archive from the normal profile action area
+   *   - newborn registration remains allowed
+   *
+   * ARCHIVED
+   *   - historical/read-only
+   *   - cannot edit
+   *   - cannot archive again
+   *   - cannot register newborn
+   */
+  const canEdit = isActive;
+  const canArchive = isActive;
+  const canRegisterNewborn = !isArchived;
 
   const activeNewbornsCount = useMemo(
     () =>
@@ -582,7 +616,7 @@ export default function LabourRecordProfile() {
   );
 
   function openArchiveModal() {
-    if (!record || isArchived || archiving) return;
+    if (!record || !canArchive || archiving) return;
 
     setArchiveReason("");
     setArchiveValidationError("");
@@ -598,7 +632,7 @@ export default function LabourRecordProfile() {
   }
 
   async function handleArchive() {
-    if (!record || isArchived || archiving) return;
+    if (!record || !canArchive || archiving) return;
 
     const trimmedReason = archiveReason.trim();
 
@@ -735,6 +769,8 @@ export default function LabourRecordProfile() {
                     >
                       {isArchived ? (
                         <Lock size={13} />
+                      ) : isCompleted ? (
+                        <ShieldCheck size={13} />
                       ) : (
                         <CheckCircle2 size={13} />
                       )}
@@ -751,38 +787,62 @@ export default function LabourRecordProfile() {
                     Taarifa kamili za labour, maternal assessment,
                     fetal assessment na delivery ya mgonjwa.
                   </p>
+
+                  {isActive && (
+                    <div className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 text-xs font-bold text-blue-50 backdrop-blur">
+                      <HeartPulse size={14} />
+                      Labour & Delivery inaendelea. Taarifa bado
+                      zinaweza kuhaririwa.
+                    </div>
+                  )}
+
+                  {isCompleted && (
+                    <div className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 text-xs font-bold text-blue-50 backdrop-blur">
+                      <Lock size={14} />
+                      Labour & Delivery imekamilika. Taarifa za labour
+                      ni read-only.
+                    </div>
+                  )}
+
+                  {isArchived && (
+                    <div className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 text-xs font-bold text-blue-50 backdrop-blur">
+                      <Lock size={14} />
+                      Labour Record hii ni historical record na
+                      imefungwa kwa ajili ya audit.
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-3">
-                {!isArchived && (
-                  <>
-                    <Link
-                      to={`/maternity/labour-records/${record.id}/edit`}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-rose-700 shadow-lg transition hover:-translate-y-0.5 hover:bg-rose-50"
-                    >
-                      <Edit3 size={17} />
-                      Hariri
-                    </Link>
+                {canEdit && (
+                  <Link
+                    to={`/maternity/labour-records/${record.id}/edit`}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-rose-700 shadow-lg transition hover:-translate-y-0.5 hover:bg-rose-50"
+                  >
+                    <Edit3 size={17} />
+                    Hariri
+                  </Link>
+                )}
 
-                    <button
-                      type="button"
-                      onClick={openArchiveModal}
-                      disabled={archiving}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-black text-white backdrop-blur transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {archiving ? (
-                        <Loader2
-                          className="animate-spin"
-                          size={17}
-                        />
-                      ) : (
-                        <Lock size={17} />
-                      )}
+                {canArchive && (
+                  <button
+                    type="button"
+                    onClick={openArchiveModal}
+                    disabled={archiving}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-black text-white backdrop-blur transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {archiving ? (
+                      <Loader2
+                        className="animate-spin"
+                        size={17}
+                      />
+                    ) : (
+                      <Lock size={17} />
+                    )}
 
-                      Archive
-                    </button>
-                  </>
+                    Archive
+                  </button>
                 )}
               </div>
             </div>
@@ -793,6 +853,7 @@ export default function LabourRecordProfile() {
                 <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200">
                   Patient
                 </p>
+
                 <p className="mt-1 truncate text-sm font-black">
                   {record.patientName || "—"}
                 </p>
@@ -802,6 +863,7 @@ export default function LabourRecordProfile() {
                 <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200">
                   Patient Number
                 </p>
+
                 <p className="mt-1 text-sm font-black">
                   {record.patientNumber || "—"}
                 </p>
@@ -811,6 +873,7 @@ export default function LabourRecordProfile() {
                 <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200">
                   Pregnancy
                 </p>
+
                 <p className="mt-1 text-sm font-black">
                   #{record.pregnancyId}
                 </p>
@@ -820,6 +883,7 @@ export default function LabourRecordProfile() {
                 <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200">
                   Admission
                 </p>
+
                 <p className="mt-1 text-sm font-black">
                   {formatDate(record.admissionDate)}
                 </p>
@@ -992,9 +1056,9 @@ export default function LabourRecordProfile() {
             <InfoItem
               label="Blood Pressure"
               value={
-                record.maternalBpSystolic != null &&
-                record.maternalBpDiastolic != null
-                  ? `${record.maternalBpSystolic}/${record.maternalBpDiastolic} mmHg`
+                record.bloodPressureSystolic != null &&
+                record.bloodPressureDiastolic != null
+                  ? `${record.bloodPressureSystolic}/${record.bloodPressureDiastolic} mmHg`
                   : "—"
               }
               tone="rose"
@@ -1003,8 +1067,8 @@ export default function LabourRecordProfile() {
             <InfoItem
               label="Pulse"
               value={
-                record.maternalPulse != null
-                  ? `${record.maternalPulse} bpm`
+                record.pulse != null
+                  ? `${record.pulse} bpm`
                   : "—"
               }
               tone="rose"
@@ -1013,8 +1077,8 @@ export default function LabourRecordProfile() {
             <InfoItem
               label="Temperature"
               value={
-                record.maternalTemperature != null
-                  ? `${record.maternalTemperature} °C`
+                record.temperature != null
+                  ? `${record.temperature} °C`
                   : "—"
               }
               tone="rose"
@@ -1023,8 +1087,8 @@ export default function LabourRecordProfile() {
             <InfoItem
               label="Respiratory Rate"
               value={
-                record.maternalRespiratoryRate != null
-                  ? `${record.maternalRespiratoryRate}/min`
+                record.respiratoryRate != null
+                  ? `${record.respiratoryRate}/min`
                   : "—"
               }
               tone="rose"
@@ -1192,7 +1256,7 @@ export default function LabourRecordProfile() {
               </div>
             </div>
 
-            {!isArchived && (
+            {canRegisterNewborn && (
               <Link
                 to={`/maternity/newborn-records/register?labourRecordId=${record.id}`}
                 className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-pink-600 to-rose-600 px-5 py-3 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg"
@@ -1259,7 +1323,7 @@ export default function LabourRecordProfile() {
                 na labour hii.
               </p>
 
-              {!isArchived && (
+              {canRegisterNewborn && (
                 <Link
                   to={`/maternity/newborn-records/register?labourRecordId=${record.id}`}
                   className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-pink-600 to-rose-600 px-5 py-3 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg"
@@ -1370,13 +1434,25 @@ export default function LabourRecordProfile() {
           icon={Lock}
           title="Record Protection & History"
           subtitle="Audit information ya Labour Record"
-          tone={isArchived ? "amber" : "blue"}
+          tone={
+            isArchived
+              ? "amber"
+              : isCompleted
+                ? "green"
+                : "blue"
+          }
         >
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <InfoItem
               label="Record Status"
               value={statusLabel(record.recordStatus)}
-              tone={isArchived ? "amber" : "green"}
+              tone={
+                isArchived
+                  ? "amber"
+                  : isCompleted
+                    ? "green"
+                    : "blue"
+              }
             />
 
             <InfoItem
@@ -1397,6 +1473,55 @@ export default function LabourRecordProfile() {
               tone="slate"
             />
           </div>
+
+          {isActive && (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 via-sky-50 to-rose-50 p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                  <HeartPulse size={19} />
+                </div>
+
+                <div>
+                  <p className="text-sm font-black text-blue-800">
+                    Labour Record hii iko ACTIVE
+                  </p>
+
+                  <p className="mt-1 text-sm leading-6 text-blue-700">
+                    Labour & Delivery bado inaendelea. Taarifa za
+                    clinical zinaweza kuhaririwa hadi record
+                    ikamilishwe.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isCompleted && (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-green-50 to-blue-50 p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+                  <ShieldCheck size={19} />
+                </div>
+
+                <div>
+                  <p className="text-sm font-black text-emerald-800">
+                    Labour Record hii imekamilika
+                  </p>
+
+                  <p className="mt-1 text-sm leading-6 text-emerald-700">
+                    Taarifa za labour na delivery zimefanyiwa
+                    finalization. Record hii ni read-only na haiwezi
+                    kuhaririwa tena.
+                  </p>
+
+                  <p className="mt-2 text-sm font-semibold text-emerald-800">
+                    Newborn Records bado zinaweza kusajiliwa kutoka
+                    kwenye Labour Record hii.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {isArchived && (
             <div className="mt-4 overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-5">
@@ -1449,7 +1574,7 @@ export default function LabourRecordProfile() {
                 Fungua Pregnancy
               </Link>
 
-              {!isArchived && (
+              {canEdit && (
                 <Link
                   to={`/maternity/labour-records/${record.id}/edit`}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-orange-500 px-5 py-3 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg"
@@ -1609,7 +1734,7 @@ export default function LabourRecordProfile() {
                   type="button"
                   onClick={handleArchive}
                   disabled={archiving}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 px-5 py-3 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 px-5 py-3 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {archiving ? (
                     <>

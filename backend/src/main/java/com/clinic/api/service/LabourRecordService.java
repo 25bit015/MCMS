@@ -153,7 +153,7 @@ public class LabourRecordService {
 
         applyRequest(record, request);
 
-        // Status is controlled by the service.
+        // New Labour episodes always start as ACTIVE.
         record.setRecordStatus("ACTIVE");
         record.setArchiveReason(null);
 
@@ -182,9 +182,16 @@ public class LabourRecordService {
                                                 + " was not found."
                                 ));
 
-        // Archived records are historical and immutable.
-        if ("ARCHIVED".equalsIgnoreCase(
-                record.getRecordStatus())) {
+        String currentStatus =
+                normalizeStatus(
+                        record.getRecordStatus()
+                );
+
+        // -----------------------------------------------------
+        // ARCHIVED RECORDS
+        // -----------------------------------------------------
+
+        if ("ARCHIVED".equals(currentStatus)) {
 
             throw new IllegalArgumentException(
                     "Archived Labour records are historical "
@@ -192,7 +199,35 @@ public class LabourRecordService {
             );
         }
 
+        // -----------------------------------------------------
+        // COMPLETED RECORDS
+        // -----------------------------------------------------
+
+        if ("COMPLETED".equals(currentStatus)) {
+
+            throw new IllegalArgumentException(
+                    "Completed Labour records are finalized "
+                            + "delivery records and cannot be edited."
+            );
+        }
+
+        // -----------------------------------------------------
+        // ONLY ACTIVE RECORDS CAN REACH THIS POINT
+        // -----------------------------------------------------
+
+        if (!"ACTIVE".equals(currentStatus)) {
+
+            throw new IllegalArgumentException(
+                    "Only ACTIVE Labour records can be edited."
+            );
+        }
+
+        // -----------------------------------------------------
+        // PREGNANCY RELATIONSHIP
+        // -----------------------------------------------------
+
         if (request.getPregnancyId() == null) {
+
             throw new IllegalArgumentException(
                     "Pregnancy ID is required."
             );
@@ -219,8 +254,95 @@ public class LabourRecordService {
 
         applyRequest(record, request);
 
-        // Status remains controlled by the service.
+        // Only ACTIVE records reach this point.
         record.setRecordStatus("ACTIVE");
+
+        LabourRecord saved =
+                labourRecordRepository.save(record);
+
+        return toResponse(saved);
+    }
+
+    // =========================================================
+    // COMPLETE
+    // =========================================================
+
+    public LabourRecordResponse complete(
+            Long id) {
+
+        LabourRecord record =
+                labourRecordRepository.findById(id)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Labour record with ID "
+                                                + id
+                                                + " was not found."
+                                ));
+
+        String currentStatus =
+                normalizeStatus(
+                        record.getRecordStatus()
+                );
+
+        // -----------------------------------------------------
+        // ONLY ACTIVE RECORDS CAN BE COMPLETED
+        // -----------------------------------------------------
+
+        if ("COMPLETED".equals(currentStatus)) {
+
+            throw new IllegalArgumentException(
+                    "Labour record is already completed."
+            );
+        }
+
+        if ("ARCHIVED".equals(currentStatus)) {
+
+            throw new IllegalArgumentException(
+                    "Archived Labour records cannot be completed."
+            );
+        }
+
+        if (!"ACTIVE".equals(currentStatus)) {
+
+            throw new IllegalArgumentException(
+                    "Only ACTIVE Labour records can be completed."
+            );
+        }
+
+        // -----------------------------------------------------
+        // DELIVERY VALIDATION
+        // -----------------------------------------------------
+
+        if (record.getDeliveryDate() == null) {
+
+            throw new IllegalArgumentException(
+                    "Labour record cannot be completed "
+                            + "without a delivery date."
+            );
+        }
+
+        if (isBlank(record.getDeliveryMode())) {
+
+            throw new IllegalArgumentException(
+                    "Labour record cannot be completed "
+                            + "without a delivery mode."
+            );
+        }
+
+        if (isBlank(record.getDeliveryOutcome())) {
+
+            throw new IllegalArgumentException(
+                    "Labour record cannot be completed "
+                            + "without a delivery outcome."
+            );
+        }
+
+        // -----------------------------------------------------
+        // COMPLETE RECORD
+        // -----------------------------------------------------
+
+        record.setRecordStatus("COMPLETED");
+        record.setArchiveReason(null);
 
         LabourRecord saved =
                 labourRecordRepository.save(record);
@@ -245,13 +367,27 @@ public class LabourRecordService {
                                                 + " was not found."
                                 ));
 
-        if ("ARCHIVED".equalsIgnoreCase(
-                record.getRecordStatus())) {
+        String currentStatus =
+                normalizeStatus(
+                        record.getRecordStatus()
+                );
+
+        if ("ARCHIVED".equals(currentStatus)) {
 
             throw new IllegalArgumentException(
                     "Labour record is already archived."
             );
         }
+
+        /*
+         * Archive is intentionally allowed for both:
+         *
+         * ACTIVE    -> ARCHIVED
+         * COMPLETED -> ARCHIVED
+         *
+         * This is a historical-record operation, not
+         * a clinical edit.
+         */
 
         String reason =
                 archiveReason == null
@@ -857,5 +993,32 @@ public class LabourRecordService {
         }
 
         return name.toString();
+    }
+
+    // =========================================================
+    // NORMALIZE STATUS
+    // =========================================================
+
+    private String normalizeStatus(
+            String status) {
+
+        if (status == null
+                || status.isBlank()) {
+
+            return "ACTIVE";
+        }
+
+        return status.trim().toUpperCase();
+    }
+
+    // =========================================================
+    // CHECK BLANK STRING
+    // =========================================================
+
+    private boolean isBlank(
+            String value) {
+
+        return value == null
+                || value.isBlank();
     }
 }

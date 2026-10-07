@@ -258,16 +258,30 @@ export default function RegisterNewborn() {
           ? response.data
           : [];
 
-        const activeRecords = records.filter(
-          (record) =>
-            String(record.recordStatus || "").toUpperCase() ===
-            "ACTIVE"
-        );
+        /*
+         * Newborn registration is allowed for:
+         * ACTIVE    -> Labour is still ongoing.
+         * COMPLETED -> Delivery/labour is completed and
+         *              newborn is now being recorded.
+         *
+         * ARCHIVED is excluded because it is a locked
+         * historical record.
+         */
+        const eligibleRecords = records.filter((record) => {
+          const status = String(
+            record.recordStatus || ""
+          ).toUpperCase();
 
-        setLabourRecords(activeRecords);
+          return (
+            status === "ACTIVE" ||
+            status === "COMPLETED"
+          );
+        });
+
+        setLabourRecords(eligibleRecords);
 
         if (requestedLabourRecordId) {
-          const matchingRecord = activeRecords.find(
+          const matchingRecord = eligibleRecords.find(
             (record) =>
               String(record.id) ===
               String(requestedLabourRecordId)
@@ -285,13 +299,13 @@ export default function RegisterNewborn() {
             }));
 
             setError(
-              `Labour Record #${requestedLabourRecordId} haipatikani au si ACTIVE.`
+              `Labour Record #${requestedLabourRecordId} haipatikani au umehifadhiwa kama ARCHIVED.`
             );
           }
         }
       } catch (err) {
         console.error(
-          "Failed to load active labour records:",
+          "Failed to load eligible labour records:",
           err
         );
 
@@ -311,6 +325,10 @@ export default function RegisterNewborn() {
         String(form.labourRecordId)
     );
   }, [labourRecords, form.labourRecordId]);
+
+  const selectedLabourStatus = String(
+    selectedLabour?.recordStatus || ""
+  ).toUpperCase();
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target;
@@ -612,7 +630,7 @@ export default function RegisterNewborn() {
             subtitle={
               isLabourPreselected
                 ? "Labour Record imechaguliwa moja kwa moja kutoka kwenye Labour Profile."
-                : "Chagua Labour Record active inayohusiana na mtoto huyu."
+                : "Chagua Labour Record yenye status ACTIVE au COMPLETED inayohusiana na mtoto huyu."
             }
             tone="blue"
           >
@@ -643,20 +661,27 @@ export default function RegisterNewborn() {
                       -- Chagua Labour Record --
                     </option>
 
-                    {labourRecords.map((record) => (
-                      <option
-                        key={record.id}
-                        value={record.id}
-                      >
-                        #{record.id} —{" "}
-                        {record.patientName ||
-                          "Mgonjwa hajulikani"}{" "}
-                        —{" "}
-                        {record.patientNumber ||
-                          "No Patient Number"}{" "}
-                        — {record.admissionDate || ""}
-                      </option>
-                    ))}
+                    {labourRecords.map((record) => {
+                      const status = String(
+                        record.recordStatus || ""
+                      ).toUpperCase();
+
+                      return (
+                        <option
+                          key={record.id}
+                          value={record.id}
+                        >
+                          #{record.id} —{" "}
+                          {record.patientName ||
+                            "Mgonjwa hajulikani"}{" "}
+                          —{" "}
+                          {record.patientNumber ||
+                            "No Patient Number"}{" "}
+                          — {record.admissionDate || ""} —{" "}
+                          {status}
+                        </option>
+                      );
+                    })}
                   </select>
                 )}
 
@@ -670,17 +695,30 @@ export default function RegisterNewborn() {
                 {!loadingLabour &&
                   labourRecords.length === 0 && (
                     <p className="mt-2 text-xs font-medium text-amber-600">
-                      Hakuna Labour Record ACTIVE
-                      inayopatikana. Sajili au activate
-                      Labour Record kwanza.
+                      Hakuna Labour Record yenye status
+                      ACTIVE au COMPLETED inayopatikana.
                     </p>
                   )}
               </div>
 
               <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-                  Selected Labour Record
-                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                    Selected Labour Record
+                  </p>
+
+                  {selectedLabourStatus && (
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                        selectedLabourStatus === "COMPLETED"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-blue-100 text-blue-700"
+                      }`}
+                    >
+                      {selectedLabourStatus}
+                    </span>
+                  )}
+                </div>
 
                 {selectedLabour ? (
                   <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
@@ -729,6 +767,14 @@ export default function RegisterNewborn() {
                     Chagua Labour Record kuona taarifa
                     za mama.
                   </p>
+                )}
+
+                {selectedLabourStatus === "COMPLETED" && (
+                  <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-medium text-emerald-700">
+                    Labour imekamilika. Unaweza sasa
+                    kurekodi taarifa za newborn chini ya
+                    Labour Record hii.
+                  </div>
                 )}
               </div>
             </div>
